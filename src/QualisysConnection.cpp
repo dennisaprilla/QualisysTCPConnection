@@ -44,7 +44,7 @@ int QualisysConnection::connectTCP()
 }
 
 
-int QualisysConnection::setControlGUIRecord(std::string password)
+int QualisysConnection::setControlGUICapture(std::string password)
 {
     // trying to take control Qualisys GUI
     if ( poRTProtocol_.TakeControl(password.c_str()) )
@@ -52,15 +52,15 @@ int QualisysConnection::setControlGUIRecord(std::string password)
         // take controll is successful
         printf("[OK] Successfully gain control of Qualisys GUI.\n");
         // let's set a flag to inform the program that the user can control GUI record now
-        controlGUIrecord_ = true;
+        streamMode_ = QualisysConnection::STREAM_USING_COMMAND;
         return 0;
     }
     else
     {
         // take controll is unsuccessful
-        printf("[!!] Failed to take control over QTM. %s\n", poRTProtocol_.GetErrorString());
+        printf("[!!] Failed to take control over QTM. (%s)\n", poRTProtocol_.GetErrorString());
         // let's set a flag to inform the program that the user can not control GUI record
-        controlGUIrecord_ = false;
+        streamMode_ = QualisysConnection::STREAM_USING_MANUAL_BUTTON;
         return -1;
     }
 }
@@ -105,10 +105,10 @@ int QualisysConnection::readMarkerSettings()
 
 int QualisysConnection::receiveData()
 {
-    // (!) This block will be ignored if the user specified to control QTM GUI from CMD
+    // (!) This block will be ignored if the user specified STREAM_USING_COMMAND or STREAM_USING_NOTHING
     // i need to continuously listening if there is any event (such as start capture or stop capture from QTM GUI).
     // don't start recording if there is no signal from the QTM GUI yet.
-    if (!controlGUIrecord_)
+    if (streamMode_ == QualisysConnection::STREAM_USING_MANUAL_BUTTON)
     {
         // variable to capture packet event from qualisys
         CRTPacket::EEvent ePacketEvent;
@@ -117,8 +117,8 @@ int QualisysConnection::receiveData()
         {
             if (ePacketEvent == CRTPacket::EEvent::EventCaptureStarted && !userstart_)
             {
-                std::cout << "[>>] Start capturing Qualisys (controlled manually from GUI)." << std::endl;
-                // If qualisys recording started we also start the recording of US image
+                std::cout << "[>>] Start capturing Qualisys (capture commanded manually from QTM GUI)." << std::endl;
+                // (!) START RECORDING FOR EVERY OTHER DEVICE
                 synch::start();
                 userstart_ = true;
             }
@@ -137,7 +137,6 @@ int QualisysConnection::receiveData()
     // receving
     if (userstart_)
     {
-
         // variable to capture packettype (error/packetdata/end)
         CRTPacket::EPacketType ePacketType;
 
@@ -155,83 +154,84 @@ int QualisysConnection::receiveData()
             // let's check type of data we got..
             switch (ePacketType)
             {
+            
                 // if there is a packet error, stop streaming, stop other device, and show errors
-            case CRTPacket::PacketError:
-                std::cout << "[!!] Error when streaming frames: " << poRTProtocol_.GetRTPacket()->GetErrorString() << std::endl;
-                synch::setStop(true);
-                break;
+                case CRTPacket::PacketError:
+                    std::cout << "[!!] Error when streaming frames: " << poRTProtocol_.GetRTPacket()->GetErrorString() << std::endl;
+                    synch::setStop(true);
+                    break;
 
-                // if streaming is not running yet, it goes here
-                // or if there is no data at the moment
-            case CRTPacket::PacketNoMoreData:
-                break;
+                    // if streaming is not running yet, it goes here
+                    // or if there is no data at the moment
+                case CRTPacket::PacketNoMoreData:
+                    break;
 
-                // if we received data, let's do our bussiness
-            case CRTPacket::PacketData:
+                    // if we received data, let's do our bussiness
+                case CRTPacket::PacketData:
 
-                float fX, fY, fZ;
-                float afRotMatrix[9];
+                    float fX, fY, fZ;
+                    float afRotMatrix[9];
 
-                // only concern if the packet arrived is in size with our expectation i.e. rigid body size
-                if (rtPacket->GetComponentSize(CRTPacket::Component6d))
-                {
-                    // get how much number of 6DoF body we received
-                    unsigned int nCount = rtPacket->Get6DOFBodyCount();
-                    // we only concern if we really get some value
-                    if (nCount > 0)
+                    // only concern if the packet arrived is in size with our expectation i.e. rigid body size
+                    if (rtPacket->GetComponentSize(CRTPacket::Component6d))
                     {
-                        // clear the vector before inserting new data
-                        rigidbodyData_.clear();
-
-                        // get timestamp from Qualisys Packet
-                        unsigned long long timestampQualisysInt = rtPacket->GetTimeStamp();
-                        timeStampQualisys_ = double(timestampQualisysInt) / 1e6;
-
-
-                        // loop for all rigid body detected
-                        for (unsigned int i = 0; i < nCount; i++)
+                        // get how much number of 6DoF body we received
+                        unsigned int nCount = rtPacket->Get6DOFBodyCount();
+                        // we only concern if we really get some value
+                        if (nCount > 0)
                         {
-                            // get rigid body names
-                            char* label = (char*)poRTProtocol_.Get6DOFBodyName(i);
-                            // get the rigid body values
-                            rtPacket->Get6DOFBody(i, fX, fY, fZ, afRotMatrix);
+                            // clear the vector before inserting new data
+                            rigidbodyData_.clear();
 
-                            // using eigen to convert rotation matrix to quaternion
-                            Eigen::Matrix3f RotM{ {afRotMatrix[0], afRotMatrix[1], afRotMatrix[2]},
-                                                  {afRotMatrix[3], afRotMatrix[4], afRotMatrix[5]},
-                                                  {afRotMatrix[6], afRotMatrix[7], afRotMatrix[8]} };
-                            Eigen::Quaternionf q(RotM);
+                            // get timestamp from Qualisys Packet
+                            unsigned long long timestampQualisysInt = rtPacket->GetTimeStamp();
+                            timeStampQualisys_ = double(timestampQualisysInt) / 1e6;
 
 
-                            // print the values
-                            //printf("%15s : %9.3f %9.3f %9.3f   %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f\n",
-                            //    label, fX, fY, fZ, afRotMatrix[0], afRotMatrix[1], afRotMatrix[2], afRotMatrix[3],
-                            //    afRotMatrix[4], afRotMatrix[5], afRotMatrix[6], afRotMatrix[7], afRotMatrix[8]);
+                            // loop for all rigid body detected
+                            for (unsigned int i = 0; i < nCount; i++)
+                            {
+                                // get rigid body names
+                                char* label = (char*)poRTProtocol_.Get6DOFBodyName(i);
+                                // get the rigid body values
+                                rtPacket->Get6DOFBody(i, fX, fY, fZ, afRotMatrix);
 
-                            // push the data to vector
-                            rigidbodyData_.push_back(fX / 1000);
-                            rigidbodyData_.push_back(fY / 1000);
-                            rigidbodyData_.push_back(fZ / 1000);
-                            rigidbodyData_.push_back(q.w());
-                            rigidbodyData_.push_back(q.x());
-                            rigidbodyData_.push_back(q.y());
-                            rigidbodyData_.push_back(q.z());
+                                // using eigen to convert rotation matrix to quaternion
+                                Eigen::Matrix3f RotM{ {afRotMatrix[0], afRotMatrix[1], afRotMatrix[2]},
+                                                      {afRotMatrix[3], afRotMatrix[4], afRotMatrix[5]},
+                                                      {afRotMatrix[6], afRotMatrix[7], afRotMatrix[8]} };
+                                Eigen::Quaternionf q(RotM);
 
-                        }
 
-                        // if the user decided to log, logging here
-                        if (record_)
-                        {
-                            logger_->log(Logger::LogID::RigidBody, timeStamp_, timeStampQualisys_, rigidbodyData_);
+                                // print the values
+                                //printf("%15s : %9.3f %9.3f %9.3f   %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f\n",
+                                //    label, fX, fY, fZ, afRotMatrix[0], afRotMatrix[1], afRotMatrix[2], afRotMatrix[3],
+                                //    afRotMatrix[4], afRotMatrix[5], afRotMatrix[6], afRotMatrix[7], afRotMatrix[8]);
+
+                                // push the data to vector
+                                rigidbodyData_.push_back(fX / 1000);
+                                rigidbodyData_.push_back(fY / 1000);
+                                rigidbodyData_.push_back(fZ / 1000);
+                                rigidbodyData_.push_back(q.w());
+                                rigidbodyData_.push_back(q.x());
+                                rigidbodyData_.push_back(q.y());
+                                rigidbodyData_.push_back(q.z());
+
+                            }
+
+                            // if the user decided to log, logging here
+                            if (record_)
+                            {
+                                logger_->log(Logger::LogID::RigidBody, timeStamp_, timeStampQualisys_, rigidbodyData_);
+                            }
                         }
                     }
-                }
-                break;
+                    break;
 
                 // if there is some unknown package, ignore it
-            default:
-                std::cout << "[!!] Unknown CRTPacket case" << std::endl;
-                break;
+                default:
+                    std::cout << "[!!] Unknown CRTPacket case" << std::endl;
+                    break;
             }
 
         // if receiving data is not successful;
@@ -258,24 +258,41 @@ void QualisysConnection::operator()()
         logger_->addLog(Logger::LogID::RigidBody, rigidbodyName_);
     }
 
-    // if user specified to control QTM GUI from CMD to record, let's command startcapture,
-    // if not, skip this part, and in the receiveData() there will be listener to start event from GUI
-    if (controlGUIrecord_)
+    // If user specified to control QTM GUI from CMD to record, it automatically uses STREAM_USING_COMMAND,
+    // which will execute the start capture command. 
+    if (streamMode_ == QualisysConnection::STREAM_USING_COMMAND)
     {
         // try to command to start capture
         if (poRTProtocol_.StartCapture()) {
-            printf("[>>] Start capturing Qualisys (controlled from CMD).\n");
+            printf("[>>] Start capturing Qualisys (capture commanded from CMD).\n");
+            // (!) START RECORDING FOR EVERY OTHER DEVICE
             synch::start();
-            userstart_ = true;
 
         // if the command fails
         } else {
-            printf("[!!] Start capturing failed. (%s)\n", poRTProtocol_.GetErrorString());
-            synch::setStop(true);
-            userstart_ = false;
+            printf("[!!] Capture, commanded from CMD, is failed. (%s).\n", poRTProtocol_.GetErrorString());
+            printf("[!!] Stream mode changed from STREAM_USING_COMMAND to STREAM_USING_MANUAL_BUTTON. Start capture by pressing Capture Button in QTM GUI\n");
+            streamMode_ = QualisysConnection::STREAM_USING_MANUAL_BUTTON;
+            // release the control
+            poRTProtocol_.ReleaseControl();
         }
+        // start anyway
+        userstart_ = true;
     }
 
+    // if the user not specified how the stream suppose to be, this is the deafult execution, it is just start
+    // the streaming without anything (not command capture, nor listening capture button)
+    if (streamMode_ == QualisysConnection::STREAM_USING_NOTHING)
+    {
+        printf("[>>] Start capturing Qualisys (no capture QTM).\n");
+        // (!) START RECORDING FOR EVERY OTHER DEVICE
+        synch::start();
+        userstart_ = true;
+    }
+
+
+    // The main loop of receiving data is here ================================================================
+ 
     // a flag if there is a condition that terminates the connection
     int streamingstatus=-1;
     // as long as there is no stopping signal from every other device, keep receiving data 
@@ -283,6 +300,7 @@ void QualisysConnection::operator()()
         // receive the data
         streamingstatus = this->receiveData();
     }
+    // =========================================================================================================
 
 
     // streaming not going well

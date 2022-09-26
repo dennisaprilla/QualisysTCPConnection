@@ -27,6 +27,7 @@
 #include <unistd.h>
 #endif
 
+
 class QualisysConnection
 {
 
@@ -54,7 +55,7 @@ public:
      * @brief Set function to take Qulisys GUI control
      * @return flag indicating the successs of controlling.
     */
-    int setControlGUIRecord(std::string password);
+    int setControlGUICapture(std::string password);
 
     /**
      * @brief Set the directory for storing the logs.
@@ -98,7 +99,25 @@ public:
     void operator()();
 
 
+    enum enumStreamModes {
+        STREAM_USING_NOTHING,
+        STREAM_USING_MANUAL_BUTTON,
+        STREAM_USING_COMMAND
+    };
 
+    /**
+     * @brief Set function to specify which streaming mode is used
+     *
+     * There are 3 modes currently available: 
+     * STREAM_USING_MANUAL_BUTTON is used if the user wants to press the capture button manually from QTM GUI.
+     * STREAM_USING_COMMAND is used if the user wants everything started from this class, without intervention in QTM GUI.
+     * STREAM_USING_NOTHING usually used for debugging, it will make the program directly stream data.
+     * 
+    */
+    void setStreamingMode(QualisysConnection::enumStreamModes mode)
+    {
+        streamMode_ = mode;
+    }
 
 protected:
 
@@ -128,39 +147,36 @@ protected:
     bool checkKeyPressed()
     {
         return (GetKeyState(VK_ESCAPE) & 0x8000);
-    }
+    } 
 
 
     CRTProtocol poRTProtocol_;          //!< Class for the communication with the Qualisys software.
 
 
-
-
 private:
 
-    std::string    ip_   = "127.0.0.1";      //!< Default IP address
-    unsigned short port_ = 22222;            //!< Default port number (22222).
+    std::string    ip_   = "127.0.0.1";         //!< Default IP address
+    unsigned short port_ = 22222;               //!< Default port number (22222).
 
-    const int      majorVersion = 1;         //!< Qualisys major version used for connecting to Qualisys (1).
-    const int      minorVersion = 19;        //!< Qualisys minor version used for connecting to Qualisys (19).
-    const bool     bigEndian = false;        //!< Default order of sequence (false).
-    unsigned short udpPort = 6734;           //!< Default udp port (6734).
+    const int      majorVersion = 1;            //!< Qualisys major version used for connecting to Qualisys (1).
+    const int      minorVersion = 19;           //!< Qualisys minor version used for connecting to Qualisys (19).
+    const bool     bigEndian = false;           //!< Default order of sequence (false).
+    unsigned short udpPort = 6734;              //!< Default udp port (6734).
+
+    bool record_ = false;                       //!< A flag to record (false).
+    std::string recordDirectory_;               //!< Directory for recording data.
+
+    enumStreamModes streamMode_ = QualisysConnection::STREAM_USING_MANUAL_BUTTON; //!< Stream mode to decide how the data will be streamed
+    std::string controlPassword_;               //!< A password for controling Qualisys GUI.
+
+    double timeStamp_;                          //!< timestamp when a data arrived to PC (in seconds).
+	double timeStampQualisys_;                  //!< timestamp from Qualisys Data Packet converted (in seconds).
+    std::vector<std::string> rigidbodyName_;    //!< Contains list of rigidbody names.
+    std::vector<double> rigidbodyData_;         //!< Contains value of rigidbodies.
+    QualisysLogger* logger_;                    //!< A class for managing logging, inherited from OpenSimFileLogger
 
 
-    bool record_ = false;                    //!< A flag to record (false).
-    std::string recordDirectory_;            //!< Directory for recording data.
-
-    bool controlGUIrecord_ = false;          //!< A flag to record with GUI (false).
-    std::string controlPassword_;            //!< A password for controling Qualisys GUI.
-
-    double timeStamp_;                       //!< timestamp when a data arrived to PC (in seconds).
-	double timeStampQualisys_;               //!< timestamp from Qualisys Data Packet converted (in seconds).
-    std::vector<std::string> rigidbodyName_; //!< Contains list of rigidbody names.
-    std::vector<double> rigidbodyData_;      //!< Contains value of rigidbodies.
-    QualisysLogger* logger_;                 //!< A class for managing logging, inherited from OpenSimFileLogger
-
-
-    bool userquit_ = false;                   //!< A flag which specified if the user wants to exit
-    bool userstart_ = false;                  //!< A flag which specified if the user wants to start
+    bool userquit_ = false;                     //!< A flag which specified if the user wants to exit
+    bool userstart_ = false;                    //!< A flag which specified if the user wants to start
 
 };
