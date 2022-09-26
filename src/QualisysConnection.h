@@ -49,6 +49,13 @@ public:
     QualisysConnection(std::string ip, unsigned short port);
 	~QualisysConnection();
 
+
+    /**
+     * @brief Set function to take Qulisys GUI control
+     * @return flag indicating the successs of controlling.
+    */
+    int setControlGUIRecord(std::string password);
+
     /**
      * @brief Set the directory for storing the logs.
      * @param recordDirectory Directory name.
@@ -74,6 +81,7 @@ public:
     {
         record_ = flag;
     }
+
     /**
      * @brief Get recording status
     */
@@ -81,8 +89,6 @@ public:
     {
         return record_;
     }
-
-
 
     /**
      * @brief Overloading operator().
@@ -144,6 +150,9 @@ private:
     bool record_ = false;                    //!< A flag to record (false).
     std::string recordDirectory_;            //!< Directory for recording data.
 
+    bool controlGUIrecord_ = false;          //!< A flag to record with GUI (false).
+    std::string controlPassword_;            //!< A password for controling Qualisys GUI.
+
     double timeStamp_;                       //!< timestamp when a data arrived to PC (in seconds).
 	double timeStampQualisys_;               //!< timestamp from Qualisys Data Packet converted (in seconds).
     std::vector<std::string> rigidbodyName_; //!< Contains list of rigidbody names.
@@ -152,5 +161,6 @@ private:
 
 
     bool userquit_ = false;                   //!< A flag which specified if the user wants to exit
+    bool userstart_ = false;                  //!< A flag which specified if the user wants to start
 
 };

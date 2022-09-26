@@ -16,6 +16,7 @@ int main()
 	QualisysConnection myQualisysConnection;
 
 	myQualisysConnection.setRecord(true);
+	//myQualisysConnection.setControlGUIRecord("password");
 	myQualisysConnection.setDirectory("D:/qualisyslog");
 
 	std::thread threadQualisys(std::ref(myQualisysConnection));

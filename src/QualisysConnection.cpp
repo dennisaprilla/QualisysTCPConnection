@@ -44,6 +44,27 @@ int QualisysConnection::connectTCP()
 }
 
 
+int QualisysConnection::setControlGUIRecord(std::string password)
+{
+    // trying to take control Qualisys GUI
+    if ( poRTProtocol_.TakeControl(password.c_str()) )
+    {   
+        // take controll is successful
+        printf("[OK] Successfully gain control of Qualisys GUI.\n");
+        // let's set a flag to inform the program that the user can control GUI record now
+        controlGUIrecord_ = true;
+        return 0;
+    }
+    else
+    {
+        // take controll is unsuccessful
+        printf("[!!] Failed to take control over QTM. %s\n", poRTProtocol_.GetErrorString());
+        // let's set a flag to inform the program that the user can not control GUI record
+        controlGUIrecord_ = false;
+        return -1;
+    }
+}
+
 
 int QualisysConnection::readMarkerSettings() 
 {
@@ -77,48 +98,75 @@ int QualisysConnection::readMarkerSettings()
         }
     }
 
-    // (!) I need to put something here for storing the data to file
-    //for (auto it = begin(rigidbodyName_); it != end(rigidbodyName_); ++it) {
-    //    std::cout << it->data() << "\n";
-    //}
-
     printf("[OK] Recieved 6DoF settings from Qualisys.\n");
     return 0;
 }
 
 
-
 int QualisysConnection::receiveData()
 {
-    // variable to capture packettype (error/packetdata/end)
-    CRTPacket::EPacketType ePacketType;
-
-    // get a frame
-    unsigned int nComponentType = CRTProtocol::cComponent6d;
-    poRTProtocol_.GetCurrentFrame(nComponentType);
-    // get a packet
-    CRTPacket* rtPacket = poRTProtocol_.GetRTPacket();
-    // Get the PC timeframe
-    timeStamp_ = rtb::getTime();
-
-    // check if receiving data is a success
-    if (poRTProtocol_.Receive(ePacketType, true) == CNetwork::ResponseType::success)
+    // (!) This block will be ignored if the user specified to control QTM GUI from CMD
+    // i need to continuously listening if there is any event (such as start capture or stop capture from QTM GUI).
+    // don't start recording if there is no signal from the QTM GUI yet.
+    if (!controlGUIrecord_)
     {
-        // let's check type of data we got..
-        switch (ePacketType)
+        // variable to capture packet event from qualisys
+        CRTPacket::EEvent ePacketEvent;
+        
+        if (poRTProtocol_.GetState(ePacketEvent, true, 1)) //1ms
         {
-             // if there is a packet error, stop streaming, stop other device, and show errors
+            if (ePacketEvent == CRTPacket::EEvent::EventCaptureStarted && !userstart_)
+            {
+                std::cout << "[>>] Start capturing Qualisys (controlled manually from GUI)." << std::endl;
+                // If qualisys recording started we also start the recording of US image
+                synch::start();
+                userstart_ = true;
+            }
+
+            //If qualisys recording stopped we also stop the software
+            if (ePacketEvent == CRTPacket::EEvent::EventCaptureStopped && userstart_)
+            {
+                // If qualisys recording stopped we also start the recording of other devices
+                std::cout << "[>>] Qualisys recording stopped." << std::endl;
+                synch::setStop(true);
+                userstart_ = false;
+            }
+        }
+    }
+
+    // receving
+    if (userstart_)
+    {
+
+        // variable to capture packettype (error/packetdata/end)
+        CRTPacket::EPacketType ePacketType;
+
+        // get a frame
+        unsigned int nComponentType = CRTProtocol::cComponent6d;
+        poRTProtocol_.GetCurrentFrame(nComponentType);
+        // get a packet
+        CRTPacket* rtPacket = poRTProtocol_.GetRTPacket();
+        // Get the PC timeframe
+        timeStamp_ = rtb::getTime();
+
+        // check if receiving data is a success
+        if (poRTProtocol_.Receive(ePacketType, true) == CNetwork::ResponseType::success)
+        {
+            // let's check type of data we got..
+            switch (ePacketType)
+            {
+                // if there is a packet error, stop streaming, stop other device, and show errors
             case CRTPacket::PacketError:
                 std::cout << "[!!] Error when streaming frames: " << poRTProtocol_.GetRTPacket()->GetErrorString() << std::endl;
                 synch::setStop(true);
                 break;
 
-            // if streaming is not running yet, it goes here
-            // or if there is no data at the moment
+                // if streaming is not running yet, it goes here
+                // or if there is no data at the moment
             case CRTPacket::PacketNoMoreData:
                 break;
-            
-            // if we received data, let's do our bussiness
+
+                // if we received data, let's do our bussiness
             case CRTPacket::PacketData:
 
                 float fX, fY, fZ;
@@ -131,7 +179,7 @@ int QualisysConnection::receiveData()
                     unsigned int nCount = rtPacket->Get6DOFBodyCount();
                     // we only concern if we really get some value
                     if (nCount > 0)
-                    {   
+                    {
                         // clear the vector before inserting new data
                         rigidbodyData_.clear();
 
@@ -178,22 +226,24 @@ int QualisysConnection::receiveData()
                         }
                     }
                 }
-                
                 break;
-            
-            // if there is some unknown package, ignore it
+
+                // if there is some unknown package, ignore it
             default:
                 std::cout << "[!!] Unknown CRTPacket case" << std::endl;
                 break;
-        }
+            }
 
-        // check if user presed a key
-        userquit_ = this->checkKeyPressed();
-    }
-    else
-    {
-        return -1;
-    }
+        // if receiving data is not successful;
+        } else {
+            // return -1;
+
+        } // end if .Receive();
+
+    } // end if (userstart_);
+
+    // check if user presed a key
+    userquit_ = this->checkKeyPressed();
 
     return 0;
 }
@@ -208,25 +258,72 @@ void QualisysConnection::operator()()
         logger_->addLog(Logger::LogID::RigidBody, rigidbodyName_);
     }
 
-    printf("[>>] Streaming Qualisys data now... Press ESQ to finish the recording.\n");
-    // a flag if there is a condition that terminates the connection
-    int streamingstatus;
-    // as long as there is no stopping signal from every other device, keep receiving data 
-    while (!synch::getStop() && !userquit_)
+    // if user specified to control QTM GUI from CMD to record, let's command startcapture,
+    // if not, skip this part, and in the receiveData() there will be listener to start event from GUI
+    if (controlGUIrecord_)
     {
+        // try to command to start capture
+        if (poRTProtocol_.StartCapture()) {
+            printf("[>>] Start capturing Qualisys (controlled from CMD).\n");
+            synch::start();
+            userstart_ = true;
+
+        // if the command fails
+        } else {
+            printf("[!!] Start capturing failed. (%s)\n", poRTProtocol_.GetErrorString());
+            synch::setStop(true);
+            userstart_ = false;
+        }
+    }
+
+    // a flag if there is a condition that terminates the connection
+    int streamingstatus=-1;
+    // as long as there is no stopping signal from every other device, keep receiving data 
+    while (!synch::getStop() && !userquit_) {
+        // receive the data
         streamingstatus = this->receiveData();
     }
 
-    // if the code comes to this points, it means, either the user quite the program 
-    // or there is something wrong with the streaming data
-    if (streamingstatus==-1)
-    {
-        printf("[!!] There is something wrong with the straming data");
+
+    // streaming not going well
+    if (streamingstatus==-1) {
+        printf("[!!] There is something wrong with the streaming data.\n");
         synch::setStop(true);
     }
-    else 
-    {
-        printf("[>>] Streaming finished. Bye-bye!\n");
-        synch::setStop(true);
+
+    // streaming goes well until the user pressed ESC
+    if (streamingstatus==0) {
+        // if user specified to controling QTM GUI from CMD, let's command to stop and save
+        if (controlGUIrecord_) {
+
+            // first, let's command QTM to stop
+            if (poRTProtocol_.StopCapture()) {
+                
+                // stop every other devices
+                synch::setStop(true);
+                printf("[OK] Successfully stopped QTM recording.");
+                // now, after QTM stopped, let's command QTM to save the data
+                std::string filename = "QTMdata";
+
+                if (poRTProtocol_.SaveCapture(filename.c_str(), true, nullptr, 0)) {
+                    // if successfull to save
+                    printf("[OK] Successfully saved QTM recording.\n");
+                }
+                else {
+                    // if fail to save
+                    printf("[!!] Something wrong happened when saving QTM recording.\n");
+                }
+
+            } else {
+                // if fail to stop
+                printf("[!!] Something wrong happened when stopping QTM recording. Saving data failed.\n");
+                synch::setStop(true);
+            }
+
+        // if user didn't specify controlling GUI from CMD, just quit
+        } else {
+            printf("[>>] Streaming finished. Bye-bye!\n");
+            synch::setStop(true);
+        }
     }
 }
