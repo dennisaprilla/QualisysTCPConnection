@@ -200,7 +200,6 @@ int QualisysConnection::receiveData()
                                                       {afRotMatrix[6], afRotMatrix[7], afRotMatrix[8]} };
                                 Eigen::Quaternionf q(RotM);
 
-
                                 // print the values
                                 //printf("%15s : %9.3f %9.3f %9.3f   %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f %9.3f\n",
                                 //    label, fX, fY, fZ, afRotMatrix[0], afRotMatrix[1], afRotMatrix[2], afRotMatrix[3],

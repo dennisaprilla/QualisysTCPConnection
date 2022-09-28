@@ -17,7 +17,6 @@ add_library(QualisysConnectionLib
 target_link_libraries(QualisysConnectionLib
 	LoggerLib
 	Synch
-	eigen
 	qualisys_cpp_sdk
 	${Boost_LIBRARIES}
 )
