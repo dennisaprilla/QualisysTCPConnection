@@ -115,7 +115,7 @@ int QualisysConnection::receiveData()
         {
             if (ePacketEvent == CRTPacket::EEvent::EventCaptureStarted && !userstart_)
             {
-                std::cout << "[>>] Start capturing Qualisys (capture commanded manually from QTM GUI)." << std::endl;
+                std::cout << "[>>] Start capturing Qualisys (capture commanded from QTM GUI)." << std::endl;
                 // (!) START RECORDING FOR EVERY OTHER DEVICE
                 synch::start();
                 userstart_ = true;
@@ -262,7 +262,7 @@ void QualisysConnection::operator()()
     {
         // try to command to start capture
         if (poRTProtocol_.StartCapture()) {
-            printf("[>>] Start capturing Qualisys (capture commanded from CMD).\n");
+            printf("[>>] Start capturing Qualisys (capture commanded from CMD, waiting for actual recording start).\n");
 
             // (!) START RECORDING FOR EVERY OTHER DEVICE
             // synch::start();
