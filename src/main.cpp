@@ -16,9 +16,10 @@ int main()
 	// set true, if you want only stream data and recording, set false if you don't want to record.
 	myQualisysConnection.setRecord(true);
 	myQualisysConnection.setDirectory("D:/qualisyslog");
-	// by specifying command below, streaming mode automatically set to STREAM_USING_COMMAND
+	// specify this function if you want to control GUI capture
 	myQualisysConnection.setControlGUICapture("password");
-	// you can still specify how you want to stream here. for debugging purposes, i used STREAM_USING_NOTHING
+	// by specifying command above, streaming mode automatically set to STREAM_USING_COMMAND
+	// however, you can still specify how you want to stream here. for debugging purposes, i used STREAM_USING_NOTHING
 	myQualisysConnection.setStreamingMode(QualisysConnection::STREAM_USING_NOTHING);
 
 

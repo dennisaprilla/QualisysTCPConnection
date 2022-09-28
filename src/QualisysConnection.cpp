@@ -20,8 +20,6 @@ QualisysConnection::~QualisysConnection()
 {
 }
 
-
-
 int QualisysConnection::connectTCP()
 {
 
@@ -265,8 +263,16 @@ void QualisysConnection::operator()()
         // try to command to start capture
         if (poRTProtocol_.StartCapture()) {
             printf("[>>] Start capturing Qualisys (capture commanded from CMD).\n");
+
             // (!) START RECORDING FOR EVERY OTHER DEVICE
-            synch::start();
+            // synch::start();
+            
+            // I changed my mind to start recording here, because when i test the command control to start
+            // the recording, it seems there is a delay between command and the actual time the QTM start
+            // capturing. So, here, i will put our streammode_ to STREAM_USING_MANUAL_BUTTON. However,
+            // different with the else block (below), the user actually don't need to start the button manually.
+            // It is just wait until the QTM actually start capturing.
+            streamMode_ = QualisysConnection::STREAM_USING_MANUAL_BUTTON;
 
         // if the command fails
         } else {
@@ -276,8 +282,6 @@ void QualisysConnection::operator()()
             // release the control
             poRTProtocol_.ReleaseControl();
         }
-        // start anyway
-        userstart_ = true;
     }
 
     // if the user not specified how the stream suppose to be, this is the deafult execution, it is just start
@@ -312,7 +316,7 @@ void QualisysConnection::operator()()
     // streaming goes well until the user pressed ESC
     if (streamingstatus==0) {
         // if user specified to controling QTM GUI from CMD, let's command to stop and save
-        if (controlGUIrecord_) {
+        if (streamMode_ == QualisysConnection::STREAM_USING_COMMAND) {
 
             // first, let's command QTM to stop
             if (poRTProtocol_.StopCapture()) {
@@ -337,6 +341,8 @@ void QualisysConnection::operator()()
                 printf("[!!] Something wrong happened when stopping QTM recording. Saving data failed.\n");
                 synch::setStop(true);
             }
+
+
 
         // if user didn't specify controlling GUI from CMD, just quit
         } else {

@@ -1,5 +1,6 @@
 #pragma once
 
+// basic libraries
 #include <iostream>
 #include <string>
 
@@ -8,12 +9,12 @@
 #include "RTProtocol.h"
 #include "RTPacket.h"
 
-// a class that inherit OpenSimFileLogger (from guillaume)
+// a class that inherit OpenSimFileLogger for logging data (from guillaume)
 #include "QualisysLogger.h"
-// a class for mantaining synchronization start and stop for all devices
+// a class for maintaining synchronization start and stop for all devices
 #include "Synch.h"
 #include "getTime.h"
-
+// a class for converting rotation matrix to quaternion (to reduce data size)
 #include "Eigen/Dense"
 
 // library from boost, to manage file
