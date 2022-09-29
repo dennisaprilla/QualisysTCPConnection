@@ -51,7 +51,7 @@ int AModeUSConnection::connectTCP(SOCKET* ConnectSocket) {
 
     iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (iResult != 0) {
-        printf("WSAStartup failed: %d\n", iResult);
+        printf("[AMode]\t[!!] WSAStartup failed: %d\n", iResult);
         return -1;
         // synch::setStop(true);
     }
@@ -66,7 +66,7 @@ int AModeUSConnection::connectTCP(SOCKET* ConnectSocket) {
 
     iResult = getaddrinfo(ip_.c_str(), port_.c_str(), &hints, &result);
     if (iResult != 0) {
-        printf("getaddrinfo failed: %d\n", iResult);
+        printf("[AMode]\t[!!] getaddrinfo failed: %d\n", iResult);
         WSACleanup();
         // synch::setStop(true);
         return -1;
@@ -75,7 +75,7 @@ int AModeUSConnection::connectTCP(SOCKET* ConnectSocket) {
     *ConnectSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
 
     if (*ConnectSocket == INVALID_SOCKET) {
-        printf("Error at socket(): %ld\n", WSAGetLastError());
+        printf("[AMode]\t[!!] Error at socket(): %ld\n", WSAGetLastError());
         freeaddrinfo(result);
         WSACleanup();
         // synch::setStop(true);
@@ -92,13 +92,13 @@ int AModeUSConnection::connectTCP(SOCKET* ConnectSocket) {
     freeaddrinfo(result);
 
     if (*ConnectSocket == INVALID_SOCKET) {
-        printf("Unable to connect to server!\n");
+        printf("[AMode]\t[!!] Unable to connect to server!\n");
         WSACleanup();
         // synch::setStop(true);
         return -1;
     }
 
-    printf("Connection to A-Mode Ultrasound Machine success\n");
+    printf("[AMode]\t[OK] Connected to the A-Mode Ultrasound Machine, specified at ip: %s, port: %s\n", ip_.c_str(), port_.c_str());
     return 0;
 }
 
@@ -128,7 +128,7 @@ int AModeUSConnection::setDirectory(std::string directory) {
     // check if the directory is exists
     if (!boost::filesystem::exists(directory)) {
         if (!boost::filesystem::create_directories(directory)) {
-            printf("Unable to create directory for A-mode Ultrasound logging");
+            printf("[AMode]\t[!!] Unable to create directory for A-mode Ultrasound logging");
             return -1;
         }
     }
@@ -156,7 +156,7 @@ int AModeUSConnection::setDirectory(std::string directory, std::string filename)
     // check if the directory is exists
     if (!boost::filesystem::exists(directory)) {
         if (!boost::filesystem::create_directories(directory)) {
-            printf("Unable to create directory for A-mode Ultrasound logging");
+            printf("[AMode]\t[!!] Unable to create directory for A-mode Ultrasound logging");
             return -1;
         }
     }
@@ -277,7 +277,7 @@ int AModeUSConnection::receiveData(std::vector<uint16_t>* ultrasound_frd, char* 
             memcpy(ultrasound_frd->data(), receivebuffer + headerindexsize, datasize);
 
             // lets print the bytes, not really neccessary actually
-            printf("Amode : (%dB)\n", iResult);
+            // printf("Amode : (%dB)\n", iResult);
 
             //// printing to console, this is only for debugging, which is veery slow, so keep this commented
             //for (auto i=ultrasound_frd->begin()+43501; i!=ultrasound_frd->begin()+43601; ++i){
@@ -289,13 +289,11 @@ int AModeUSConnection::receiveData(std::vector<uint16_t>* ultrasound_frd, char* 
             // record only when the user stated that he wants to record
             if (setrecord_) {
 
-                /*
                 // if this is first data, wait until trigger from qualisys before i write to a file
                 if (firstpass_) {
                     synch::waitStart();
                     firstpass_ = false;
                 }
-                */
 
                 // creating a string for the name of the file
                 filename_.str(std::string());
@@ -335,13 +333,13 @@ int AModeUSConnection::receiveData(std::vector<uint16_t>* ultrasound_frd, char* 
 
     // 0 means connection is closed 
     else if (iResult == 0) {
-        printf("Connection closed from A-Mode US Machine\n");
+        printf("[AMode]\t[!!] Connection closed from A-Mode US Machine\n");
         // synch::setStop(true);
     }
 
     // -1 means something happened with the connection
     else {
-        printf("recv failed from A-Mode US Machine: %d\n", WSAGetLastError());
+        printf("[AMode]\t[!!] recv failed from A-Mode US Machine: %d\n", WSAGetLastError());
         // synch::setStop(true);
     }
 
@@ -368,7 +366,7 @@ int AModeUSConnection::receiveData(std::vector<double>* ultrasound_frd, char* re
             memcpy(ultrasound_frd->data(), receivebuffer + headerindexsize, datasize);
 
             // lets print the bytes, not really neccessary actually
-            printf("Amode : (%dB)\n", iResult);
+            // printf("Amode : (%dB)\n", iResult);
 
             //// printing to console, this is only for debugging, which is veery slow, so keep this commented
             //for (auto i = ultrasound_frd->begin(); i != ultrasound_frd->end(); ++i) {
@@ -379,13 +377,11 @@ int AModeUSConnection::receiveData(std::vector<double>* ultrasound_frd, char* re
             // record only when the user stated that he wants to record
             if (setrecord_) {
 
-                /*
                 // if this is first data, wait until trigger from qualisys before i write to a file
                 if (firstpass_) {
                     synch::waitStart();
                     firstpass_ = false;
                 }
-                */
 
                 // first column is timestamp
                 ofs_ << std::to_string(rtb::getTime()) << ",";
@@ -401,13 +397,13 @@ int AModeUSConnection::receiveData(std::vector<double>* ultrasound_frd, char* re
 
     // 0 means connection is closed 
     else if (iResult == 0) {
-        printf("Connection closed from A-Mode US Machine\n");
+        printf("[AMode]\t[!!] Connection closed from A-Mode US Machine\n");
         // synch::setStop(true);
     }
 
     // -1 means something happened with the connection
     else {
-        printf("recv failed from A-Mode US Machine: %d\n", WSAGetLastError());
+        printf("[AMode]\t[!!] recv failed from A-Mode US Machine: %d\n", WSAGetLastError());
         // synch::setStop(true);
     }
 
@@ -468,6 +464,7 @@ void AModeUSConnection::operator()() {
         countdata_ = 0;
         timestamp = rtb::getTime();
 
+        printf("[AMode]\t[>>] Start streaming A-mode US Raw Data.\n");
         // main loop to receive the data,
         // we will do this until there is an error or one of the system is stop
         do {
@@ -516,6 +513,7 @@ void AModeUSConnection::operator()() {
         countdata_ = 0;
         timestamp = rtb::getTime();
 
+        printf("[AMode]\t[>>] Start streaming A-mode US Depth Data.\n");
         // main loop to receive the data,
         // we will do this until there is an error or one of the system is stop
         do {
@@ -525,7 +523,8 @@ void AModeUSConnection::operator()() {
     }
 
     double timestamp2 = rtb::getTime();
-    std::cout << timestamp2 << " - " << timestamp << " = " << timestamp2 - timestamp << " (" << (timestamp2 - timestamp) / countdata_ << ")\n";
+    printf("[AMode]\t[>>] Stop streaming. Obtained: %d data, time elapsed: %.4f, data rate: %.4fs", countdata_, (timestamp2 - timestamp), (timestamp2 - timestamp) / countdata_);
+    //std::cout << "[AMode]\t[>>] " << timestamp2 << " - " << timestamp << " = " << timestamp2 - timestamp << " (" << (timestamp2 - timestamp) / countdata_ << ")\n";
 
     // disconnect the socket, we want everything is clean after this program is stopped
     // https://docs.microsoft.com/en-us/windows/win32/winsock/disconnecting-the-client

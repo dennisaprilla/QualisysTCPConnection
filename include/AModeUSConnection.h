@@ -22,6 +22,7 @@
 // Guillaume's libraries
 // #include "Synch.h"
 #include "getTime.h"
+#include "Synch.h"
 
 #include <opencv2/opencv.hpp>
 

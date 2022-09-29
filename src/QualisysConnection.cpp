@@ -30,13 +30,13 @@ int QualisysConnection::connectTCP()
         if (!poRTProtocol_.Connect((char*)ip_.data(), port_, &udpPort, majorVersion, minorVersion, bigEndian))
         {
             // if fails, print the error message and return -1;
-            printf("[!!] rtProtocol.Connect: (%s)", poRTProtocol_.GetErrorString());
+            printf("[Qualisys]\t[!!] rtProtocol.Connect: (%s)", poRTProtocol_.GetErrorString());
             sleep(1);
             return -1;
         }
     }
     // if there is nothing wrong, return 0; 
-    printf("[OK] Connected to the Qualisys Motion Tracking system specified at ip: %s, port: %d\n", (char*)ip_.data(), port_);
+    printf("[Qualisys]\t[OK] Connected to the Qualisys Motion Tracking system specified at ip: %s, port: %d\n", (char*)ip_.data(), port_);
     return 0;
 
 }
@@ -48,7 +48,7 @@ int QualisysConnection::setControlGUICapture(std::string password)
     if ( poRTProtocol_.TakeControl(password.c_str()) )
     {   
         // take controll is successful
-        printf("[OK] Successfully gain control of Qualisys GUI.\n");
+        printf("[Qualisys]\t[OK] Successfully gain control of Qualisys GUI.\n");
         // let's set a flag to inform the program that the user can control GUI record now
         streamMode_ = QualisysConnection::STREAM_USING_COMMAND;
         return 0;
@@ -56,7 +56,7 @@ int QualisysConnection::setControlGUICapture(std::string password)
     else
     {
         // take controll is unsuccessful
-        printf("[!!] Failed to take control over QTM. (%s)\n", poRTProtocol_.GetErrorString());
+        printf("[Qualisys]\t[!!] Failed to take control over QTM. (%s)\n", poRTProtocol_.GetErrorString());
         // let's set a flag to inform the program that the user can not control GUI record
         streamMode_ = QualisysConnection::STREAM_USING_MANUAL_BUTTON;
         return -1;
@@ -70,7 +70,7 @@ int QualisysConnection::readMarkerSettings()
     bool bDataAvailable;
     if (!poRTProtocol_.Read6DOFSettings(bDataAvailable))
     {
-        printf("[!!] rtProtocol.Read6DOFSettings: (%s)", poRTProtocol_.GetErrorString());
+        printf("[Qualisys]\t[!!] rtProtocol.Read6DOFSettings: (%s)", poRTProtocol_.GetErrorString());
         synch::setStop(true);
         return -1;
     }
@@ -96,7 +96,7 @@ int QualisysConnection::readMarkerSettings()
         }
     }
 
-    printf("[OK] Recieved 6DoF settings from Qualisys.\n");
+    printf("[Qualisys]\t[OK] Recieved 6DoF settings from Qualisys.\n");
     return 0;
 }
 
@@ -115,7 +115,7 @@ int QualisysConnection::receiveData()
         {
             if (ePacketEvent == CRTPacket::EEvent::EventCaptureStarted && !userstart_)
             {
-                std::cout << "[>>] Start capturing Qualisys (capture commanded from QTM GUI)." << std::endl;
+                std::cout << "[Qualisys]\t[>>] Start capturing Qualisys (capture commanded from QTM GUI)." << std::endl;
                 // (!) START RECORDING FOR EVERY OTHER DEVICE
                 synch::start();
                 userstart_ = true;
@@ -125,7 +125,7 @@ int QualisysConnection::receiveData()
             if (ePacketEvent == CRTPacket::EEvent::EventCaptureStopped && userstart_)
             {
                 // If qualisys recording stopped we also start the recording of other devices
-                std::cout << "[>>] Qualisys recording stopped." << std::endl;
+                std::cout << "[Qualisys]\t[>>] Qualisys recording stopped." << std::endl;
                 synch::setStop(true);
                 userstart_ = false;
             }
@@ -155,7 +155,7 @@ int QualisysConnection::receiveData()
             
                 // if there is a packet error, stop streaming, stop other device, and show errors
                 case CRTPacket::PacketError:
-                    std::cout << "[!!] Error when streaming frames: " << poRTProtocol_.GetRTPacket()->GetErrorString() << std::endl;
+                    std::cout << "[Qualisys]\t[!!] Error when streaming frames: " << poRTProtocol_.GetRTPacket()->GetErrorString() << std::endl;
                     synch::setStop(true);
                     break;
 
@@ -227,7 +227,7 @@ int QualisysConnection::receiveData()
 
                 // if there is some unknown package, ignore it
                 default:
-                    std::cout << "[!!] Unknown CRTPacket case" << std::endl;
+                    std::cout << "[Qualisys]\t[!!] Unknown CRTPacket case" << std::endl;
                     break;
             }
 
@@ -261,7 +261,7 @@ void QualisysConnection::operator()()
     {
         // try to command to start capture
         if (poRTProtocol_.StartCapture()) {
-            printf("[>>] Start capturing Qualisys (capture commanded from CMD, waiting for actual recording start).\n");
+            printf("[Qualisys]\t[>>] Start capturing Qualisys (capture commanded from CMD, waiting for actual recording start).\n");
 
             // (!) START RECORDING FOR EVERY OTHER DEVICE
             // synch::start();
@@ -275,8 +275,8 @@ void QualisysConnection::operator()()
 
         // if the command fails
         } else {
-            printf("[!!] Capture, commanded from CMD, is failed. (%s).\n", poRTProtocol_.GetErrorString());
-            printf("[!!] Stream mode changed from STREAM_USING_COMMAND to STREAM_USING_MANUAL_BUTTON. Start capture by pressing Capture Button in QTM GUI\n");
+            printf("[Qualisys]\t[!!] Capture, commanded from CMD, is failed. (%s).\n", poRTProtocol_.GetErrorString());
+            printf("[Qualisys]\t[!!] Stream mode changed from STREAM_USING_COMMAND to STREAM_USING_MANUAL_BUTTON. Start capture by pressing Capture Button in QTM GUI\n");
             streamMode_ = QualisysConnection::STREAM_USING_MANUAL_BUTTON;
             // release the control
             poRTProtocol_.ReleaseControl();
@@ -287,7 +287,7 @@ void QualisysConnection::operator()()
     // the streaming without anything (not command capture, nor listening capture button)
     if (streamMode_ == QualisysConnection::STREAM_USING_NOTHING)
     {
-        printf("[>>] Start capturing Qualisys (no capture QTM).\n");
+        printf("[Qualisys]\t[>>] Start capturing Qualisys (no capture QTM).\n");
         // (!) START RECORDING FOR EVERY OTHER DEVICE
         synch::start();
         userstart_ = true;
@@ -308,7 +308,7 @@ void QualisysConnection::operator()()
 
     // streaming not going well
     if (streamingstatus==-1) {
-        printf("[!!] There is something wrong with the streaming data.\n");
+        printf("[Qualisys]\t[!!] There is something wrong with the streaming data.\n");
         synch::setStop(true);
     }
 
@@ -322,22 +322,22 @@ void QualisysConnection::operator()()
                 
                 // stop every other devices
                 synch::setStop(true);
-                printf("[OK] Successfully stopped QTM recording.");
+                printf("[Qualisys]\t[OK] Successfully stopped QTM recording.");
                 // now, after QTM stopped, let's command QTM to save the data
                 std::string filename = "QTMdata";
 
                 if (poRTProtocol_.SaveCapture(filename.c_str(), true, nullptr, 0)) {
                     // if successfull to save
-                    printf("[OK] Successfully saved QTM recording.\n");
+                    printf("[Qualisys]\t[OK] Successfully saved QTM recording.\n");
                 }
                 else {
                     // if fail to save
-                    printf("[!!] Something wrong happened when saving QTM recording.\n");
+                    printf("[Qualisys]\t[!!] Something wrong happened when saving QTM recording.\n");
                 }
 
             } else {
                 // if fail to stop
-                printf("[!!] Something wrong happened when stopping QTM recording. Saving data failed.\n");
+                printf("[Qualisys]\t[!!] Something wrong happened when stopping QTM recording. Saving data failed.\n");
                 synch::setStop(true);
             }
 
@@ -345,7 +345,7 @@ void QualisysConnection::operator()()
 
         // if user didn't specify controlling GUI from CMD, just quit
         } else {
-            printf("[>>] Streaming finished. Bye-bye!\n");
+            printf("[Qualisys]\t[>>] Streaming finished. Bye-bye!\n");
             synch::setStop(true);
         }
     }
