@@ -30,7 +30,7 @@ int QualisysConnection::connectTCP()
         if (!poRTProtocol_.Connect((char*)ip_.data(), port_, &udpPort, majorVersion, minorVersion, bigEndian))
         {
             // if fails, print the error message and return -1;
-            printf("[!!] rtProtocol.Connect: %s\n\n", poRTProtocol_.GetErrorString());
+            printf("[!!] rtProtocol.Connect: (%s)", poRTProtocol_.GetErrorString());
             sleep(1);
             return -1;
         }
@@ -70,7 +70,7 @@ int QualisysConnection::readMarkerSettings()
     bool bDataAvailable;
     if (!poRTProtocol_.Read6DOFSettings(bDataAvailable))
     {
-        printf("[!!] rtProtocol.Read6DOFSettings: %s\n\n", poRTProtocol_.GetErrorString());
+        printf("[!!] rtProtocol.Read6DOFSettings: (%s)", poRTProtocol_.GetErrorString());
         synch::setStop(true);
         return -1;
     }

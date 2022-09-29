@@ -3,7 +3,7 @@
 #
 cmake_minimum_required (VERSION 3.8)
 
-project ("QualisysTCPConnect")
+project ("QualisysAModeTCPConnect")
 
 # Boost library
 set(Boost_USE_STATIC_LIBS ON)
