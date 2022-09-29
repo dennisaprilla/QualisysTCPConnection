@@ -5,6 +5,11 @@
 #include "QualisysConnection.h"
 #include "Synch.h"
 
+// dependencies
+#include <tclap/CmdLine.h>
+
+#include <opencv2/opencv.hpp>
+
 
 int main()
 {
