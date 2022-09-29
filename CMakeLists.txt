@@ -24,6 +24,10 @@ link_directories( ${OpenCV_LIB_DIR} )
 # Eigen library (only headers, no instalation)
 include_directories("C:\\eigen-3.4.0")
 
+include_directories(
+	"include"
+)
+
 # TCLAP library (only headers, no installation)
 include_directories("C:\\tclap-1.4.0-rc1\\include")
 
