@@ -30,13 +30,15 @@ int QualisysConnection::connectTCP()
         if (!poRTProtocol_.Connect((char*)ip_.data(), port_, &udpPort, majorVersion, minorVersion, bigEndian))
         {
             // if fails, print the error message and return -1;
-            printf("[Qualisys]\t[!!] rtProtocol.Connect: (%s)", poRTProtocol_.GetErrorString());
+            myprintFormat(QualisysConnection::MESSAGE_WARNING, poRTProtocol_.GetErrorString());
             sleep(1);
             return -1;
         }
     }
-    // if there is nothing wrong, return 0; 
-    printf("[Qualisys]\t[OK] Connected to the Qualisys Motion Tracking system specified at ip: %s, port: %d\n", (char*)ip_.data(), port_);
+    // if there is nothing wrong, return 0;
+    char strbuffer[100];
+    sprintf(strbuffer, "Connected to the Qualisys Motion Tracking system specified at ip: %s, port: %d", ip_.c_str(), port_);
+    myprintFormat(QualisysConnection::MESSAGE_OK, strbuffer);
     return 0;
 
 }
@@ -48,7 +50,7 @@ int QualisysConnection::setControlGUICapture(std::string password)
     if ( poRTProtocol_.TakeControl(password.c_str()) )
     {   
         // take controll is successful
-        printf("[Qualisys]\t[OK] Successfully gain control of Qualisys GUI.\n");
+        myprintFormat(QualisysConnection::MESSAGE_OK, "Successfully gain control of Qualisys GUI.");
         // let's set a flag to inform the program that the user can control GUI record now
         streamMode_ = QualisysConnection::STREAM_USING_COMMAND;
         return 0;
@@ -56,7 +58,9 @@ int QualisysConnection::setControlGUICapture(std::string password)
     else
     {
         // take controll is unsuccessful
-        printf("[Qualisys]\t[!!] Failed to take control over QTM. (%s)\n", poRTProtocol_.GetErrorString());
+        std::string strtmp = "Failed to take control over QTM: ";
+        strtmp += poRTProtocol_.GetErrorString();
+        myprintFormat(QualisysConnection::MESSAGE_WARNING, strtmp);
         // let's set a flag to inform the program that the user can not control GUI record
         streamMode_ = QualisysConnection::STREAM_USING_MANUAL_BUTTON;
         return -1;
@@ -70,7 +74,7 @@ int QualisysConnection::readMarkerSettings()
     bool bDataAvailable;
     if (!poRTProtocol_.Read6DOFSettings(bDataAvailable))
     {
-        printf("[Qualisys]\t[!!] rtProtocol.Read6DOFSettings: (%s)", poRTProtocol_.GetErrorString());
+        myprintFormat(QualisysConnection::MESSAGE_WARNING, poRTProtocol_.GetErrorString());
         synch::setStop(true);
         return -1;
     }
@@ -96,17 +100,18 @@ int QualisysConnection::readMarkerSettings()
         }
     }
 
-    printf("[Qualisys]\t[OK] Recieved 6DoF settings from Qualisys.\n");
+    myprintFormat(QualisysConnection::MESSAGE_OK, "Recieved 6DoF settings from Qualisys.");
     return 0;
 }
 
 
 int QualisysConnection::receiveData()
 {
-    // (!) This block will be ignored if the user specified STREAM_USING_COMMAND or STREAM_USING_NOTHING
-    // i need to continuously listening if there is any event (such as start capture or stop capture from QTM GUI).
-    // don't start recording if there is no signal from the QTM GUI yet.
-    if (streamMode_ == QualisysConnection::STREAM_USING_MANUAL_BUTTON)
+    // I need to continuously listening if there is any event (such as start capture or stop capture from QTM GUI).
+    // don't start recording if there is no signal from the QTM GUI yet). This applied to both STREAM_USING_COMMAND
+    // and STREAM_USING_MANUAL_BUTTON, because it takes time for QTM to start the capturing from the time this program
+    // sent a command. This block will be ignored if the user specified STREAM_USING_NOTHING
+    if ( (streamMode_ == QualisysConnection::STREAM_USING_MANUAL_BUTTON) || (streamMode_== QualisysConnection::STREAM_USING_COMMAND) )
     {
         // variable to capture packet event from qualisys
         CRTPacket::EEvent ePacketEvent;
@@ -115,7 +120,7 @@ int QualisysConnection::receiveData()
         {
             if (ePacketEvent == CRTPacket::EEvent::EventCaptureStarted && !userstart_)
             {
-                std::cout << "[Qualisys]\t[>>] Start capturing Qualisys (capture commanded from QTM GUI)." << std::endl;
+                myprintFormat(QualisysConnection::MESSAGE_RUNNING, "Start capturing Qualisys (capture commanded from QTM GUI).");
                 // (!) START RECORDING FOR EVERY OTHER DEVICE
                 synch::start();
                 userstart_ = true;
@@ -125,12 +130,14 @@ int QualisysConnection::receiveData()
             if (ePacketEvent == CRTPacket::EEvent::EventCaptureStopped && userstart_)
             {
                 // If qualisys recording stopped we also start the recording of other devices
-                std::cout << "[Qualisys]\t[>>] Qualisys recording stopped." << std::endl;
+                myprintFormat(QualisysConnection::MESSAGE_WARNING, "Qualisys recording stopped.");
                 synch::setStop(true);
                 userstart_ = false;
+                userquit_ = true;
             }
         }
     }
+
 
     // receving
     if (userstart_)
@@ -155,7 +162,7 @@ int QualisysConnection::receiveData()
             
                 // if there is a packet error, stop streaming, stop other device, and show errors
                 case CRTPacket::PacketError:
-                    std::cout << "[Qualisys]\t[!!] Error when streaming frames: " << poRTProtocol_.GetRTPacket()->GetErrorString() << std::endl;
+                    myprintFormat(QualisysConnection::MESSAGE_WARNING, poRTProtocol_.GetRTPacket()->GetErrorString());
                     synch::setStop(true);
                     break;
 
@@ -227,20 +234,55 @@ int QualisysConnection::receiveData()
 
                 // if there is some unknown package, ignore it
                 default:
-                    std::cout << "[Qualisys]\t[!!] Unknown CRTPacket case" << std::endl;
+                    myprintFormat(QualisysConnection::MESSAGE_WARNING, "Unknown CRTPacket case");
                     break;
             }
 
-        // if receiving data is not successful;
         } else {
+            // if receiving data is not successful;
             // return -1;
 
         } // end if .Receive();
 
     } // end if (userstart_);
 
+
+
     // check if user presed a key
-    userquit_ = this->checkKeyPressed();
+    if (this->checkKeyPressed()) {
+
+        // if user specified STREAM_USING_COMMAND, the program will send stop capture command and then wait and listening until
+        // we recieve stop capture event from QTM GUI. In this period, we still streaming data.
+        if (streamMode_ == QualisysConnection::STREAM_USING_COMMAND) {
+
+            myprintFormat(QualisysConnection::MESSAGE_RUNNING, "User pressed ESC. Sending Stop Capture command to QTM GUI");
+
+            // check if we successfully command the QTM GUI to stop.
+            // if successfull, it will continue the streaming until we recieve stop capture event from QTM GUI.
+            // so, do nothing here, because it will be captured by the if block in the beginning of this function.
+            if (poRTProtocol_.StopCapture()) {
+                myprintFormat(QualisysConnection::MESSAGE_OK, "Stop capture command is successfully sent.");
+            }
+            // if fail, forget about saving the QTM file, there is something wrong with the stopping, quit immediately.
+            // so, i just changed the streamMode_ to STREAM_USING_NOTHING;
+            else {
+                myprintFormat(QualisysConnection::MESSAGE_WARNING, "Something wrong happened when stopping QTM recording. Saving QTM file failed.");
+
+                streamMode_ = QualisysConnection::STREAM_USING_NOTHING;
+                userstart_ = false;
+                userquit_ = true;
+            }
+        }
+
+        // if the user specified STREAM_USING_NOTHING quit immediately
+        else {
+            myprintFormat(QualisysConnection::MESSAGE_RUNNING, "User pressed ESC. Stop recording");
+            userstart_ = false;
+            userquit_ = true;
+        }
+
+        // PS. if the user specified STREAM_USING_MANUAL_BUTTON, ESQ will not stop the capturng until the user stop manually from the QTM GUI
+    }
 
     return 0;
 }
@@ -261,22 +303,23 @@ void QualisysConnection::operator()()
     {
         // try to command to start capture
         if (poRTProtocol_.StartCapture()) {
-            printf("[Qualisys]\t[>>] Start capturing Qualisys (capture commanded from CMD, waiting for actual recording start).\n");
+            myprintFormat(QualisysConnection::MESSAGE_RUNNING, "Start capturing Qualisys (capture commanded from CMD, waiting for actual recording start)");
 
             // (!) START RECORDING FOR EVERY OTHER DEVICE
-            // synch::start();
-            
             // I changed my mind to start recording here, because when i test the command control to start
             // the recording, it seems there is a delay between command and the actual time the QTM start
-            // capturing. So, here, i will put our streammode_ to STREAM_USING_MANUAL_BUTTON. However,
-            // different with the else block (below), the user actually don't need to start the button manually.
-            // It is just wait until the QTM actually start capturing.
-            streamMode_ = QualisysConnection::STREAM_USING_MANUAL_BUTTON;
+            // capturing. So i will start other device to record until we got an event from QTM that it
+            // actually starts recording (similar to STREAM_USING_MANUAL_BUTTON).
+            // synch::start();
 
         // if the command fails
         } else {
-            printf("[Qualisys]\t[!!] Capture, commanded from CMD, is failed. (%s).\n", poRTProtocol_.GetErrorString());
-            printf("[Qualisys]\t[!!] Stream mode changed from STREAM_USING_COMMAND to STREAM_USING_MANUAL_BUTTON. Start capture by pressing Capture Button in QTM GUI\n");
+
+            std::string strtmp = "Capture, commanded from CMD, is failed: ";
+            strtmp += poRTProtocol_.GetErrorString();
+            myprintFormat(QualisysConnection::MESSAGE_WARNING, strtmp);
+            myprintFormat(QualisysConnection::MESSAGE_WARNING, "Stream mode changed from STREAM_USING_COMMAND to STREAM_USING_MANUAL_BUTTON. Start capture by pressing Capture Button in QTM GUI");
+
             streamMode_ = QualisysConnection::STREAM_USING_MANUAL_BUTTON;
             // release the control
             poRTProtocol_.ReleaseControl();
@@ -287,7 +330,7 @@ void QualisysConnection::operator()()
     // the streaming without anything (not command capture, nor listening capture button)
     if (streamMode_ == QualisysConnection::STREAM_USING_NOTHING)
     {
-        printf("[Qualisys]\t[>>] Start capturing Qualisys (no capture QTM).\n");
+        myprintFormat(QualisysConnection::MESSAGE_RUNNING, "Start capturing Qualisys (no capture QTM)");
         // (!) START RECORDING FOR EVERY OTHER DEVICE
         synch::start();
         userstart_ = true;
@@ -302,51 +345,47 @@ void QualisysConnection::operator()()
     while (!synch::getStop() && !userquit_) {
         // receive the data
         streamingstatus = this->receiveData();
+
+
     }
     // =========================================================================================================
 
 
-    // streaming not going well
-    if (streamingstatus==-1) {
-        printf("[Qualisys]\t[!!] There is something wrong with the streaming data.\n");
-        synch::setStop(true);
-    }
+    //// streaming not going well
+    //if (streamingstatus==-1) {
+    //    printf("[Qualisys]\t[!!] There is something wrong with the streaming data.\n");
+    //    synch::setStop(true);
+    //}
 
     // streaming goes well until the user pressed ESC
     if (streamingstatus==0) {
         // if user specified to controling QTM GUI from CMD, let's command to stop and save
         if (streamMode_ == QualisysConnection::STREAM_USING_COMMAND) {
 
-            // first, let's command QTM to stop
-            if (poRTProtocol_.StopCapture()) {
-                
-                // stop every other devices
-                synch::setStop(true);
-                printf("[Qualisys]\t[OK] Successfully stopped QTM recording.");
-                // now, after QTM stopped, let's command QTM to save the data
-                std::string filename = "QTMdata";
-
-                if (poRTProtocol_.SaveCapture(filename.c_str(), true, nullptr, 0)) {
-                    // if successfull to save
-                    printf("[Qualisys]\t[OK] Successfully saved QTM recording.\n");
-                }
-                else {
-                    // if fail to save
-                    printf("[Qualisys]\t[!!] Something wrong happened when saving QTM recording.\n");
-                }
-
-            } else {
-                // if fail to stop
-                printf("[Qualisys]\t[!!] Something wrong happened when stopping QTM recording. Saving data failed.\n");
-                synch::setStop(true);
-            }
-
-
+            // The QTM is already stopped (look inside the receiveData() function).
+            // Now, we need to save the QTM file.
+            std::string filename = "QTMdata";
+            if (poRTProtocol_.SaveCapture(filename.c_str(), true, nullptr, 0)) myprintFormat(QualisysConnection::MESSAGE_OK, "Successfully saved QTM recording.");
+            else myprintFormat(QualisysConnection::MESSAGE_WARNING, "Something wrong happened when saving QTM recording.");
 
         // if user didn't specify controlling GUI from CMD, just quit
         } else {
-            printf("[Qualisys]\t[>>] Streaming finished. Bye-bye!\n");
+            myprintFormat(QualisysConnection::MESSAGE_OK, "Streaming finished. Bye-bye!");
             synch::setStop(true);
         }
     }
+}
+
+
+void QualisysConnection::myprintFormat(QualisysConnection::enumMessageType messagetype, std::string message)
+{
+    std::string header = "[Qualisys]";
+    std::string icon = "";
+
+    if (messagetype == QualisysConnection::MESSAGE_OK) icon = "[OK]";
+    else if (messagetype == QualisysConnection::MESSAGE_WARNING) icon = "[!!]";
+    else if (messagetype == QualisysConnection::MESSAGE_RUNNING) icon = "[>>]";
+    else printf(" ?? ");
+
+    printf("%s\t%s %s\n", header.c_str(), icon.c_str(), message.c_str());
 }

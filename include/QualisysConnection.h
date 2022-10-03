@@ -106,6 +106,12 @@ public:
         STREAM_USING_COMMAND
     };
 
+    enum enumMessageType {
+        MESSAGE_OK,
+        MESSAGE_WARNING,
+        MESSAGE_RUNNING
+    };
+
     /**
      * @brief Set function to specify which streaming mode is used
      *
@@ -119,6 +125,13 @@ public:
     {
         streamMode_ = mode;
     }
+
+    /**
+     * @brief A print function which specify the source device (Qualisys) and type of message.
+     * 
+     * There are 3 types of message: MESSAGE_OK [OK], MESSAGE_WARNING [!!], MESSAGE_RUNNING [>>].
+     */
+    void myprintFormat(QualisysConnection::enumMessageType messagetype, std::string message);
 
 protected:
 
