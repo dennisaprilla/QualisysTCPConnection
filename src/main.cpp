@@ -22,7 +22,7 @@ int main()
 	std::string qualisys_ip = "127.0.0.1";
 	unsigned short qualisys_port = 22222;
 	std::string qualisys_password = "password";
-	std::string qualisys_outputdir = "D:/qualisyslog";
+	std::string qualisys_outputdir = "D:\\amodestream\\log";
 
 	// initialize value for A-mode ultrasound system
 	std::string amode_ip = "192.168.1.2";
@@ -56,38 +56,44 @@ int main()
 	// working, and i don't want to touch this part anymore.
 	if (!useQualisys) synch::start();
 
-
-	//// create AmodeUSConnection object to connect with A-Mode Machine
-	//AModeUSConnection amodeUSConnection(amode_ip, amode_port, amode_mode);
-	//// set true if you want to stream data and recording
-	//amodeUSConnection.setRecord(true);
-	//amodeUSConnection.setDirectory(amode_outputdir);
-	//// set true if you also want to recieve index bytes from A-Mode machine (e.g. for indexing data)
-	//amodeUSConnection.useDataIndex(true);
-	//// create a Amode thread 
-	//std::thread threadAMode(std::ref(amodeUSConnection));
+	// create AmodeUSConnection object to connect with A-Mode Machine
+	AModeUSConnection amodeUSConnection(amode_ip, amode_port, amode_mode);
+	// set true if you want to stream data and recording
+	amodeUSConnection.setRecord(true);
+	amodeUSConnection.setDirectory(amode_outputdir);
+	// set true if you also want to recieve index bytes from A-Mode machine (e.g. for indexing data)
+	amodeUSConnection.useDataIndex(true);
+	// create a Amode thread 
+	std::thread threadAMode(std::ref(amodeUSConnection));
 
 
 	if (useQualisys)
 	{
 		// Qualisys is the center of the attention here, it is the class which allows other class to write under its command
 		QualisysConnection myQualisysConnection;
-		// set true, if you want stream data and recording, set false if you don't want to record.
-		myQualisysConnection.setRecord(true);
-		myQualisysConnection.setDirectory(qualisys_outputdir);
-		// specify this function if you want to control GUI capture
-		myQualisysConnection.setControlGUICapture(qualisys_password);
-		// by specifying command above, streaming mode automatically set to STREAM_USING_COMMAND
-		// however, you can still specify how you want to stream here. for debugging purposes, i used STREAM_USING_NOTHING
-		myQualisysConnection.setStreamingMode(QualisysConnection::STREAM_USING_NOTHING);
-		// create a thread for Qualisys
-		std::thread threadQualisys(std::ref(myQualisysConnection));
-		// stupid Qualisys class, i can't put the .join() function outside the if, what a nonsense. (refer to my speech above)
-		threadQualisys.join();
+
+		// setting up everything make sense if there is connection
+		if (myQualisysConnection.getstatusQConnection()) {
+			// set true, if you want stream data and recording, set false if you don't want to record.
+			myQualisysConnection.setRecord(true);
+			myQualisysConnection.setDirectory(qualisys_outputdir);
+			// specify this function if you want to control GUI capture
+			myQualisysConnection.setControlGUICapture(qualisys_password);
+			// by specifying command above, streaming mode automatically set to STREAM_USING_COMMAND
+			// however, you can still specify how you want to stream here. for debugging purposes, i used STREAM_USING_NOTHING
+			myQualisysConnection.setStreamingMode(QualisysConnection::STREAM_USING_NOTHING);
+			// create a thread for Qualisys
+			std::thread threadQualisys(std::ref(myQualisysConnection));
+			// stupid Qualisys class, i can't put the .join() function outside the if, what a nonsense. (refer to my speech above)
+			threadQualisys.join();
+		}
+		else {
+			synch::setStop(true);
+		}
 	}
 
-	//// join with all other threads
-	//threadAMode.join();
+	// join with all other threads
+	threadAMode.join();
 
 	return 0;
 }

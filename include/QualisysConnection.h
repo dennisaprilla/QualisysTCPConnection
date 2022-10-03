@@ -93,6 +93,20 @@ public:
     }
 
     /**
+     * @brief Get connection status
+    */
+    bool getstatusQConnection() {
+        return statusQConnection_;
+    }
+
+    /**
+     * @brief Get marker setting status
+    */
+    bool getstatusQMarker() {
+        return statusQMarker_;
+    }
+
+    /**
      * @brief Overloading operator().
      * 
      * This operator will be called when we want to pass the class to the thread
@@ -176,6 +190,9 @@ private:
     const int      minorVersion = 19;           //!< Qualisys minor version used for connecting to Qualisys (19).
     const bool     bigEndian = false;           //!< Default order of sequence (false).
     unsigned short udpPort = 6734;              //!< Default udp port (6734).
+
+    bool statusQConnection_ = false;
+    bool statusQMarker_     = false;
 
     bool record_ = false;                       //!< A flag to record (false).
     std::string recordDirectory_;               //!< Directory for recording data.

@@ -200,6 +200,22 @@ public:
      */
     void operator()();
 
+
+    enum enumMessageType {
+        MESSAGE_OK,
+        MESSAGE_WARNING,
+        MESSAGE_RUNNING
+    };
+
+    /**
+     * @brief A print function which specify the source device (A-Mode) and type of message.
+     *
+     * There are 3 types of message: MESSAGE_OK [OK], MESSAGE_WARNING [!!], MESSAGE_RUNNING [>>].
+     */
+    void myprintFormat(AModeUSConnection::enumMessageType messagetype, std::string message);
+
+
+
     bool userquit_ = false;                     //!< A flag which specified if the user wants to exit
 
 protected:
