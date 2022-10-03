@@ -59,7 +59,7 @@ int main()
 	// create AmodeUSConnection object to connect with A-Mode Machine
 	AModeUSConnection amodeUSConnection(amode_ip, amode_port, amode_mode);
 	// set true if you want to stream data and recording
-	amodeUSConnection.setRecord(true);
+	amodeUSConnection.setRecord(false);
 	amodeUSConnection.setDirectory(amode_outputdir);
 	// set true if you also want to recieve index bytes from A-Mode machine (e.g. for indexing data)
 	amodeUSConnection.useDataIndex(true);
@@ -74,6 +74,12 @@ int main()
 
 		// setting up everything make sense if there is connection
 		if (myQualisysConnection.getstatusQConnection()) {
+			// if qualisys running, change the amodeUSconnection record status to true;
+			// something strange with the connection is happening when i directly set the record to true
+			// especially when qualisys is not connected. The second time this program is run, connection
+			// to A-mode cannot be established somehow. SUPER WEIRD!!!!
+			amodeUSConnection.setRecord(true);
+
 			// set true, if you want stream data and recording, set false if you don't want to record.
 			myQualisysConnection.setRecord(true);
 			myQualisysConnection.setDirectory(qualisys_outputdir);
@@ -88,6 +94,9 @@ int main()
 			threadQualisys.join();
 		}
 		else {
+			// need to be like this, or else, in the next connection A-mode wont stream. SUPER WEIRD!!!!
+			//synch::start();
+			//sleep(1000);
 			synch::setStop(true);
 		}
 	}

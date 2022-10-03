@@ -18,6 +18,9 @@ QualisysConnection::QualisysConnection(std::string ip, unsigned short port)
 
 QualisysConnection::~QualisysConnection()
 {
+    //synch::start();
+    //sleep(1);
+    //synch::setStop(true);
 }
 
 
@@ -166,7 +169,7 @@ int QualisysConnection::receiveData()
                 // if there is a packet error, stop streaming, stop other device, and show errors
                 case CRTPacket::PacketError:
                     myprintFormat(QualisysConnection::MESSAGE_WARNING, poRTProtocol_.GetRTPacket()->GetErrorString());
-                    synch::setStop(true);
+                    //synch::setStop(true);
                     break;
 
                     // if streaming is not running yet, it goes here
@@ -334,10 +337,12 @@ void QualisysConnection::operator()()
     // the streaming without anything (not command capture, nor listening capture button)
     if (streamMode_ == QualisysConnection::STREAM_USING_NOTHING)
     {
-        myprintFormat(QualisysConnection::MESSAGE_RUNNING, "Start capturing Qualisys (no capture QTM)");
+        // simulate delay that is happened with Qualisys Capture
+        sleep(3000);
         // (!) START RECORDING FOR EVERY OTHER DEVICE
-         synch::start();
-         userstart_ = true;
+        myprintFormat(QualisysConnection::MESSAGE_RUNNING, "Start capturing Qualisys (no capture QTM)");
+        synch::start();
+        userstart_ = true;
     }
 
 

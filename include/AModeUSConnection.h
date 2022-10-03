@@ -68,7 +68,8 @@ private:
     std::ofstream ofs_;                     //!< Object for logging csv data
 
     // for testing
-    int countdata_ = 0;                     //!< 
+    int count_streameddata_ = 0;            //!< 
+    int count_recordeddata_ = 0;             //!<
     std::stringstream filename_;            //!< 
 
 public:
@@ -98,7 +99,10 @@ public:
      */
     AModeUSConnection(std::string ip, std::string port, int samples, int probes);
 
-
+    /**
+     * @brief Destructor.
+     */
+    ~AModeUSConnection();
 
 
     /**

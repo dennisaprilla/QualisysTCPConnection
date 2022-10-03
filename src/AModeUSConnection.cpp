@@ -41,6 +41,16 @@ AModeUSConnection::AModeUSConnection(std::string ip, std::string port, int sampl
     connectTCP(&ConnectSocket_);
 }
 
+AModeUSConnection::~AModeUSConnection() {
+    //shutdown(ConnectSocket_, SD_SEND);
+    //closesocket(ConnectSocket_);
+    //WSACleanup();
+
+    //synch::start();
+    //sleep(1);
+    //synch::setStop(true);
+}
+
 
 int AModeUSConnection::connectTCP(SOCKET* ConnectSocket) {
     // variable to store the status flag
@@ -192,7 +202,7 @@ int AModeUSConnection::receiveData() {
     // temporary buffer that we will use for store binary string from socket
     char* receivebuffer = new char[datasize];
 
-    countdata_ = 0;
+    count_streameddata_ = 0;
     double timestamp = rtb::getTime();
 
     do {
@@ -229,7 +239,7 @@ int AModeUSConnection::receiveData() {
 
                 printf("(%dB)\n", iResult);
 
-                countdata_++;
+                count_streameddata_++;
             }
         }
 
@@ -245,7 +255,7 @@ int AModeUSConnection::receiveData() {
     } while (iResult > 0);
 
     double timestamp2 = rtb::getTime();
-    std::cout << timestamp2 << " - " << timestamp << " = " << timestamp2 - timestamp << " (" << (timestamp2 - timestamp) / countdata_ << ")\n";
+    std::cout << timestamp2 << " - " << timestamp << " = " << timestamp2 - timestamp << " (" << (timestamp2 - timestamp) / count_streameddata_ << ")\n";
 
     // STEP 5: DISCONNECT
     iResult = shutdown(ConnectSocket_, SD_SEND);
@@ -283,13 +293,6 @@ int AModeUSConnection::receiveData(std::vector<uint16_t>* ultrasound_frd, char* 
             // lets print the bytes, not really neccessary actually
             // printf("Amode : (%dB)\n", iResult);
 
-            //// printing to console, this is only for debugging, which is veery slow, so keep this commented
-            //for (auto i=ultrasound_frd->begin()+43501; i!=ultrasound_frd->begin()+43601; ++i){
-            //    printf("%d ", (int16_t)*i);
-            //}
-            //printf("\n");
-
-
             // record only when the user stated that he wants to record
             if (setrecord_) {
 
@@ -300,12 +303,13 @@ int AModeUSConnection::receiveData(std::vector<uint16_t>* ultrasound_frd, char* 
                     myprintFormat(AModeUSConnection::MESSAGE_RUNNING, "Waiting for Qualisys to start to record A-Mode Raw Data.");
                     synch::waitStart();
 
-                    //// We can get stop signal from the QualisysConnection eventhough we are not starting yet. This is when
-                    //// the program somehow can't connect to Qualisys. To prevent the AModeConnection goes further, let's block
-                    //// it right away here.
-                    if (synch::getStop()) return 0;
+                    // We can get stop signal from the QualisysConnection eventhough we are not starting yet. This is when
+                    // the program somehow can't connect to Qualisys. To prevent the AModeConnection goes further, let's block
+                    // it right away here.
+                    //if (synch::getStop()) return 0;
                     // if not we continue recording
-                    else myprintFormat(AModeUSConnection::MESSAGE_RUNNING, "Start recording A-Mode Raw Data.");
+                    //else 
+                    myprintFormat(AModeUSConnection::MESSAGE_RUNNING, "Start recording A-Mode Raw Data.");
 
                     // put the flag false so that we will not go to this block anymore.
                     firstpass_ = false;
@@ -341,9 +345,11 @@ int AModeUSConnection::receiveData(std::vector<uint16_t>* ultrasound_frd, char* 
                     cv::imwrite(filename_.str(), amodeimage);
                 }
 
+
+                count_recordeddata_++;
             }
 
-            countdata_++;
+            count_streameddata_++;
         }
     }
 
@@ -387,12 +393,6 @@ int AModeUSConnection::receiveData(std::vector<double>* ultrasound_frd, char* re
             // lets print the bytes, not really neccessary actually
             // printf("Amode : (%dB)\n", iResult);
 
-            //// printing to console, this is only for debugging, which is veery slow, so keep this commented
-            //for (auto i = ultrasound_frd->begin(); i != ultrasound_frd->end(); ++i) {
-            //    printf("%.5f ", *i);
-            //}
-            //printf("\n");
-
             // record only when the user stated that he wants to record
             if (setrecord_) {
 
@@ -420,9 +420,11 @@ int AModeUSConnection::receiveData(std::vector<double>* ultrasound_frd, char* re
                 std::copy(ultrasound_frd->begin(), ultrasound_frd->end(), std::ostream_iterator<double>(ofs_, ","));
                 ofs_ << "\n";
 
+
+                count_recordeddata_++;
             }
 
-            countdata_++;
+            count_streameddata_++;
         }
     }
 
@@ -497,7 +499,8 @@ void AModeUSConnection::operator()() {
         char* receivebuffer = new char[receivebuffersize];
         int bytereceived = 0;
 
-        countdata_ = 0;
+        count_streameddata_ = 0;
+        count_recordeddata_ = 0;
         timestamp = rtb::getTime();
 
         myprintFormat(AModeUSConnection::MESSAGE_RUNNING, "Start streaming A-mode US Raw Data.");
@@ -546,7 +549,8 @@ void AModeUSConnection::operator()() {
         char* receivebuffer = new char[receivebuffersize];
         int bytereceived = 0;
 
-        countdata_ = 0;
+        count_streameddata_ = 0;
+        count_recordeddata_ = 0;
         timestamp = rtb::getTime();
 
         myprintFormat(AModeUSConnection::MESSAGE_RUNNING, "Start streaming A-mode US Depth Data.");
@@ -560,7 +564,7 @@ void AModeUSConnection::operator()() {
 
     double timestamp2 = rtb::getTime();
     char strbuffer[100];
-    sprintf(strbuffer, "Stop streaming. Obtained: %d data, time elapsed: %.4f, data rate: %.4fs", countdata_, (timestamp2 - timestamp), (timestamp2 - timestamp) / countdata_);
+    sprintf(strbuffer, "Stop streaming. Streamed: %d, Recorded: %d, time elapsed: %.4f, data rate: %.4fs", count_streameddata_, count_recordeddata_, (timestamp2 - timestamp), (timestamp2 - timestamp) / count_streameddata_);
     myprintFormat(AModeUSConnection::MESSAGE_OK, strbuffer);
     //std::cout << "[AMode]\t[>>] " << timestamp2 << " - " << timestamp << " = " << timestamp2 - timestamp << " (" << (timestamp2 - timestamp) / countdata_ << ")\n";
 
