@@ -57,9 +57,9 @@ private:
 
 
     // variable that controls the behavior of this class
-    bool setrecord_ = false;                //!< flag for setting the status of the record
-    bool usedataindex_ = false;             //!< flag for using index 
-    bool firstpass_ = true;                 //!< 
+    bool setrecord_ = false;                //!< Flag for setting the status of the record
+    bool usedataindex_ = false;             //!< Flag for using index 
+    bool firstpass_ = true;                 //!< Flag for waiting Qualisys to start
     int datamode_ = DATA_RAW;               //!< Mode to interpret data, DATA_RAW and DATA_DEPTH
     std::string fullpath_;                  //!< Full path to the directory where the data is stored
     std::string recorddirectory_;           //!< Local directory where the data is stored
@@ -68,9 +68,9 @@ private:
     std::ofstream ofs_;                     //!< Object for logging csv data
 
     // for testing
-    int count_streameddata_ = 0;            //!< 
-    int count_recordeddata_ = 0;             //!<
-    std::stringstream filename_;            //!< 
+    int count_streameddata_ = 0;            //!< Counting variable for how much data is streamed from the beginning of the program
+    int count_recordeddata_ = 0;            //!< Counting variable for how much data is recorded
+    std::stringstream filename_;            //!< File name that is used for DATA_DEPTH
 
 public:
 
