@@ -9,7 +9,7 @@ AModeUSConnection::AModeUSConnection(std::string ip, std::string port, int mode)
         // this mode will encode the received data as raw data
         case DATA_RAW:
             probes_ = 30;
-            samples_ = 1500;
+            samples_ = 2500;
             datamode_ = DATA_RAW;
             indexsize_ = 2;
             break;

@@ -11,27 +11,116 @@
 // dependencies
 #include <tclap/CmdLine.h>
 
+// function for parsing arguments
+void commandLineOptions(const int& argc, char** argv,
+	bool& useQualisys, std::string& outputdir,
+	std::string& qualisys_ip, unsigned short& qualisys_port, std::string& qualisys_pass,
+	std::string& amode_ip, std::string& amode_port,
+	int& amode_mode, int& amode_samples, int& amode_probes) {
 
-int main()
+	// see TCLAP (Templatized C++ Command Line Parser Manual) documentation
+	// can be found in: http://tclap.sourceforge.net/manual.html
+	try {
+		// Define the command line object, and insert a message
+		// that describes the program. The "Command description message" 
+		// is printed last in the help text. The second argument is the 
+		// delimiter (usually space) and the last one is the version number. 
+		// The CmdLine object parses the argv array based on the Arg objects
+		// that it contains. 
+		TCLAP::CmdLine cmd("Command description message", ' ', "1.0");
+
+		// Define a value argument and add it to the command line.
+		// A value arg defines a flag and a type of value that it expects,
+		// such as "-n Bishop".
+		// General
+		TCLAP::ValueArg<std::string> nameargOutputdir("o", "outputdir", "Output directory to store A-mode and Qualisys data", false, "", "string");
+		// Qualisys
+		TCLAP::ValueArg<std::string> nameargQIP("", "Qip", "IP address of Qualisys sytem", false, "localhost", "string");
+		TCLAP::ValueArg<unsigned short> nameargQPort("", "Qport", "Port number of Qualisys sytem", false, 22222, "unsigned short");
+		TCLAP::ValueArg<std::string> nameargQPass("", "Qpass", "IP address of Qualisys sytem", false, "localhost", "string");
+		// A-mode
+		TCLAP::ValueArg<std::string> nameargAIP("", "Aip", "IP address of A-mode Ultrasound System PC", true, "192.168.0.2", "string");
+		TCLAP::ValueArg<std::string> nameargAPort("", "Aport", "Port number of A-mode Ultrasound System PC", true, "6340", "string");
+		TCLAP::ValueArg<int> nameargAModeMode("m", "mode", "A-Mode data mode. You can choose between raw data or depth data streaming, depends on the configuration you choose from A-mode Ultrasound PC. Specify 0 for raw, 1 for depth.", false, 0, "int");
+		TCLAP::ValueArg<int> nameargAModeSamples("n", "samples", "Number of samples of A-Mode Signal. If you want to see deep inside the soft tissue, put bigger value. However, if you put too big, it can affect to streaming speed performance.", false, 1500, "int");
+		TCLAP::ValueArg<int> nameargAModeProbes("p", "probes", "Number of probes of A-Mode Signal, depends on the physical setup you have from A-mode Ultrasound machine. Our current setup is 30 probes.", false, 30, "int");
+
+		// Add the argument nameArg to the CmdLine object. The CmdLine object
+		// uses this Arg to parse the command line.
+		cmd.add(nameargOutputdir);
+		cmd.add(nameargQIP);
+		cmd.add(nameargQPort);
+		cmd.add(nameargQPass);
+		cmd.add(nameargAIP);
+		cmd.add(nameargAPort);
+		cmd.add(nameargAModeMode);
+		cmd.add(nameargAModeSamples);
+		cmd.add(nameargAModeProbes);
+
+		// Define a switch and add it to the command line.
+		// A switch arg is a boolean argument and only defines a flag that
+		// indicates true or false.  In this example the SwitchArg adds itself
+		// to the CmdLine object as part of the constructor.  This eliminates
+		// the need to call the cmd.add() method.  All args have support in
+		// their constructors to add themselves directly to the CmdLine object.
+		// It doesn't matter which idiom you choose, they accomplish the same thing.
+		TCLAP::SwitchArg nameargUseQualisys("q", "qualisys", "Use Qualisys, makes it A-mode+Qualisys system.", cmd, false);
+
+		// Parse the argv array.
+		cmd.parse(argc, argv);
+
+		// Get the value parsed by each arg.
+		// general
+		useQualisys = nameargUseQualisys.getValue();
+		outputdir = nameargOutputdir.getValue();
+		// qualisys
+		qualisys_ip = nameargQIP.getValue();
+		qualisys_port = nameargQPort.getValue();
+		qualisys_pass = nameargQPass.getValue();
+		// amode
+		amode_ip = nameargAIP.getValue();
+		amode_port = nameargAPort.getValue();
+		amode_mode = nameargAModeMode.getValue();
+		amode_samples = nameargAModeSamples.getValue();
+		amode_probes = nameargAModeProbes.getValue();
+
+	}
+	catch (TCLAP::ArgException& e)  // catch exceptions
+	{
+		std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl;
+	}
+
+}
+
+
+int main(int argc, char** argv)
 {
 	std::cout << "Qualisys + Ultrasound TCP Connection." << std::endl;
+	std::cout << "D.A. Christie & G. Durandau, University of Twente." << std::endl << std::endl;
 
-	bool useQualisys = true;
+	bool useQualisys = false;
+	bool isRecord = false;
+	std::string outputdir = "";
 
 	// initalize value for Qualisys system
 	std::string qualisys_ip = "127.0.0.1";
 	unsigned short qualisys_port = 22222;
 	std::string qualisys_password = "password";
-	std::string qualisys_outputdir = "D:\\amodestream\\log";
 
 	// initialize value for A-mode ultrasound system
 	std::string amode_ip = "192.168.1.2";
 	std::string amode_port = "6340";
-	std::string amode_outputdir = "D:\\amodestream\\log";
 	int amode_mode = 0;
-	int amode_samples = 1500;
+	int amode_samples = 2500;
 	int amode_probes = 30;
 
+	// parse the arguments from command line and store it to our variables
+	commandLineOptions(argc, argv, 
+		useQualisys, outputdir,
+		qualisys_ip, qualisys_port, qualisys_password,
+		amode_ip, amode_port, amode_mode, amode_samples, amode_probes);
+
+	if (!outputdir.empty()) isRecord = true;
 
 	// If not using qualisys, directly start the synch
 	// There is a backstory behind this line. The goal is to run Qualisys and AMode connection in parallel, but, i also want
@@ -60,7 +149,7 @@ int main()
 	AModeUSConnection amodeUSConnection(amode_ip, amode_port, amode_mode);
 	// set true if you want to stream data and recording
 	amodeUSConnection.setRecord(false);
-	amodeUSConnection.setDirectory(amode_outputdir);
+	amodeUSConnection.setDirectory(outputdir);
 	// set true if you also want to recieve index bytes from A-Mode machine (e.g. for indexing data)
 	amodeUSConnection.useDataIndex(true);
 	// create a Amode thread 
@@ -70,7 +159,7 @@ int main()
 	if (useQualisys)
 	{
 		// Qualisys is the center of the attention here, it is the class which allows other class to write under its command
-		QualisysConnection myQualisysConnection;
+		QualisysConnection myQualisysConnection(qualisys_ip, qualisys_port);
 
 		// setting up everything make sense if there is connection
 		if (myQualisysConnection.getstatusQConnection()) {
@@ -78,11 +167,11 @@ int main()
 			// something strange with the connection is happening when i directly set the record to true
 			// especially when qualisys is not connected. The second time this program is run, connection
 			// to A-mode cannot be established somehow. SUPER WEIRD!!!!
-			amodeUSConnection.setRecord(true);
+			amodeUSConnection.setRecord(isRecord);
 
 			// set true, if you want stream data and recording, set false if you don't want to record.
-			myQualisysConnection.setRecord(true);
-			myQualisysConnection.setDirectory(qualisys_outputdir);
+			myQualisysConnection.setRecord(isRecord);
+			myQualisysConnection.setDirectory(outputdir);
 			// specify this function if you want to control GUI capture
 			myQualisysConnection.setControlGUICapture(qualisys_password);
 			// by specifying command above, streaming mode automatically set to STREAM_USING_COMMAND
@@ -100,9 +189,16 @@ int main()
 			synch::setStop(true);
 		}
 	}
+	else {
+		// because i set this false in the beginning of the code, now i need to turn this to true.
+		// This is just because something strange in second-connection, which is i don't know what is actually happening.
+		amodeUSConnection.setRecord(isRecord);
+	}
 
 	// join with all other threads
 	threadAMode.join();
+
+	std::cout << std::endl << "Program Closed." << std::endl;
 
 	return 0;
 }
