@@ -35,9 +35,9 @@ void commandLineOptions(const int& argc, char** argv,
 		// General
 		TCLAP::ValueArg<std::string> nameargOutputdir("o", "outputdir", "Output directory to store A-mode and Qualisys data", false, "", "string");
 		// Qualisys
-		TCLAP::ValueArg<std::string> nameargQIP("", "Qip", "IP address of Qualisys sytem", false, "localhost", "string");
+		TCLAP::ValueArg<std::string> nameargQIP("", "Qip", "IP address of Qualisys sytem", false, "127.0.0.1", "string");
 		TCLAP::ValueArg<unsigned short> nameargQPort("", "Qport", "Port number of Qualisys sytem", false, 22222, "unsigned short");
-		TCLAP::ValueArg<std::string> nameargQPass("", "Qpass", "IP address of Qualisys sytem", false, "localhost", "string");
+		TCLAP::ValueArg<std::string> nameargQPass("", "Qpass", "IP address of Qualisys sytem. Check the Qualisys settings to know the password.", false, "password", "string");
 		// A-mode
 		TCLAP::ValueArg<std::string> nameargAIP("", "Aip", "IP address of A-mode Ultrasound System PC", true, "192.168.0.2", "string");
 		TCLAP::ValueArg<std::string> nameargAPort("", "Aport", "Port number of A-mode Ultrasound System PC", true, "6340", "string");
@@ -95,9 +95,11 @@ void commandLineOptions(const int& argc, char** argv,
 
 int main(int argc, char** argv)
 {
+	// welcome message
 	std::cout << "Qualisys + Ultrasound TCP Connection." << std::endl;
 	std::cout << "D.A. Christie & G. Durandau, University of Twente." << std::endl << std::endl;
 
+	// initialize general parameter for the program
 	bool useQualisys = false;
 	bool isRecord = false;
 	std::string outputdir = "";
@@ -198,6 +200,7 @@ int main(int argc, char** argv)
 	// join with all other threads
 	threadAMode.join();
 
+	// closing message
 	std::cout << std::endl << "Program Closed." << std::endl;
 
 	return 0;
