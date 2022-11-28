@@ -122,7 +122,9 @@ int main(int argc, char** argv)
 		qualisys_ip, qualisys_port, qualisys_password,
 		amode_ip, amode_port, amode_mode, amode_samples, amode_probes);
 
+	// if the user specified the record directory, it means they want to record
 	if (!outputdir.empty()) isRecord = true;
+	else outputdir = "D:\\amodestream\\log"; // set default directory
 
 	// If not using qualisys, directly start the synch
 	// There is a backstory behind this line. The goal is to run Qualisys and AMode connection in parallel, but, i also want

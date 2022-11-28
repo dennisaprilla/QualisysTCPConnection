@@ -161,12 +161,12 @@ int AModeUSConnection::setDirectory(std::string directory) {
     }
 
     recorddirectory_ = directory;
+
     return 0;
 }
 
 
 int AModeUSConnection::setDirectory(std::string directory, std::string filename) {
-
     // check if the directory is exists
     if (!boost::filesystem::exists(directory)) {
         if (!boost::filesystem::create_directories(directory)) {
